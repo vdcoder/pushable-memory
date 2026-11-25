@@ -58,13 +58,13 @@ public:
 
 ## Reference-only configuration
 
-The optional second constructor argument `ReferenceOptions` is a test hook, not a mandated candidate API. `max_leases=0` reserves max(capacity,16) lease records; a positive value sets an explicit resource ceiling. `address_limit` limits the number of issued byte identities (default UINT64_MAX); it permits a practical test of exhaustion. Capacity zero is valid. The reference stores the same generation on a slot until that slot is reissued with a new generation. All successful positive separate calls consume one identity per byte.
+The optional second constructor argument `ReferenceOptions` is a test hook, not a required implementation API. `max_leases=0` reserves max(capacity,16) lease records; a positive value sets an explicit resource ceiling. `address_limit` limits the number of issued byte identities (default UINT64_MAX); it permits a practical test of exhaustion. Capacity zero is valid. The reference stores the same generation on a slot until that slot is reissued with a new generation. All successful positive separate calls consume one identity per byte.
 
-## Open assignment decisions
+## Open engineering decisions
 
 - Set practical physical metadata and scratch budgets only after measuring a feasible optimized design. The reference is intentionally memory hungry.
-- Decide a portable minimum simultaneous lease requirement and a portable progress rule for fragmented pinned memory. No reference-specific placement should be used as ground truth for candidate acceptance without settling that contract.
-- Specify a candidate-independent address-space-exhaustion test hook if required, since Address is intentionally opaque.
+- Decide a portable minimum simultaneous lease requirement and a portable progress rule for fragmented pinned memory. No reference-specific placement should be used as ground truth for conformance testing without settling that contract.
+- Specify a implementation-independent address-space-exhaustion test hook if required, since Address is intentionally opaque.
 - Decide if external read/write aliasing should be supported, and whether aligned native pointer requests deserve another API.
-- Define APIs and independent model tests for vector, list, deque, string, map/set, hash map, heap, record map and FlexDocument. The binary demo is not a finalized wire format. Serialized documents contain portable values and framing, never raw addresses; loading creates fresh handles. A real loader must validate malformed input.
-- Freeze performance and memory thresholds on the grading hardware, after correctness validation. The reference is not a proven performance floor or production allocator.
+- Implement the four application-level container contracts in [CONTAINERS.md](CONTAINERS.md): FlexSequence, FlexMap, FlexHashMap and FlexDocument. The document demo uses an illustrative format, distinct from the proposed portable wire format. Serialized documents contain portable values and framing, never runtime addresses; loading creates fresh handles.
+- Freeze performance and memory thresholds on controlled benchmark hardware, after correctness validation. The reference is a correctness baseline, not a proven performance floor or production-ready memory subsystem.
