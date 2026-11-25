@@ -1,8 +1,8 @@
 # Pushable Memory
 
-An experimental C++20 memory machine: bytes behave like ordered shoeboxes with persistent identities, not numerical offsets. Insert or remove cells anywhere without invalidating handles to surviving cells. Temporarily borrow real contiguous memory for native code.
+An experimental C++20 memory architecture built around ordered byte cells with persistent identities rather than numerical offsets. Insert or remove cells anywhere without invalidating handles to surviving cells. Temporarily borrow contiguous native memory for existing C and C++ code. The project investigates whether a single flexible memory primitive can simplify application data structures while approaching conventional memory performance.
 
-This repository is a **deliberately simple reference implementation**, not the optimized student solution. It is intended to serve as a readable semantic oracle and an initial baseline. No external dependencies.
+This repository contains a **deliberately simple reference implementation** that defines executable semantics and establishes an initial correctness baseline. The long-term objective is a production-oriented, capacity-bounded memory subsystem with low overhead, efficient structural mutations and predictable native interoperability. The current version is experimental, not production-ready. No external dependencies.
 
 ## Build
 
@@ -41,7 +41,7 @@ b.c_ptr_release(p);
 b.sink(inserted, 2); // HellO; e still identifies the last cell
 ```
 
-`FlexibleBuffer<false>` omits address/range checks for callers satisfying preconditions. See [SPEC.md](SPEC.md) for the full proposed reference contract and unresolved assignment parameters.
+`FlexibleBuffer<false>` omits address/range checks for callers satisfying preconditions. See [SPEC.md](SPEC.md) for the machine contract, resource semantics and open engineering decisions.
 
 ## Implementation
 
@@ -51,7 +51,29 @@ b.sink(inserted, 2); // HellO; e still identifies the last cell
 - Reverse physical mapping enables swaps. The reference makes a range contiguous by swapping **unpinned** physical bytes and updating both mappings.
 - Per-physical-byte pin counts and a pre-reserved native lease vector. Overlaps are supported when the physical constraints can be satisfied. All native writes are immediately visible; no copy-back stage.
 
-The design intentionally spends substantial metadata (roughly 73 bytes per logical-capacity byte on a typical 64-bit implementation, at default lease reservation; actual allocation sizes may vary). Structural operations and range materialization can scan large portions of the buffer. This is not an efficient memory implementation, nor a proposed memory budget for candidates. Insertion is O(capacity + count), deletion O(size + count), random access and navigation O(1), range operations O(count), and native acquisition O(capacity + count) worst case; insertion also scans active leases. Release scans leases and pin counts. These bounds describe this reference, not required student complexity.
+The design intentionally spends substantial metadata (roughly 73 bytes per logical-capacity byte on a typical 64-bit implementation, at default lease reservation; actual allocation sizes may vary). Structural operations and range materialization can scan large portions of the buffer. This is a correctness-first design, not a recommended production representation or a physical memory budget for optimized implementations. Insertion is O(capacity + count), deletion O(size + count), random access and navigation O(1), range operations O(count), and native acquisition O(capacity + count) worst case; insertion also scans active leases. Release scans leases and pin counts. These bounds describe the reference only; alternative implementations are encouraged to improve them while preserving semantics.
+
+## Container architecture
+
+[CONTAINERS.md](CONTAINERS.md) specifies four complementary application-level containers built exclusively on the public FlexibleBuffer instruction set:
+
+| Container | Purpose |
+| --- | --- |
+| `FlexSequence<T>` | One packed sequence for vector, list, deque, byte/string and queue-style use |
+| `FlexMap<K,V>` | Ordered unique-key dictionary and sorted traversal |
+| `FlexHashMap<K,V>` | Hash-based dictionary with stable entry handles across rehash |
+| `FlexDocument` | Mutable nested objects and arrays whose live bytes are their portable serialized representation |
+
+The container contracts emphasize stable handles, bounded storage, no post-construction heap allocation, correctness under structural changes, and realistic performance. Set, stack and queue adapters can reuse these primitives instead of introducing redundant storage engines.
+
+FlexDocument is a particularly important experiment: a self-contained binary encoding can be modified in place logically, saved without reconstructing an object graph, and loaded with fresh runtime handles. Save/load still incur data transfer; physical memory may not be contiguous.
+
+## Engineering roadmap
+
+1. Freeze machine semantics and resolve portable native lease progress and resource guarantees.
+2. Implement and independently validate the four container contracts.
+3. Compare optimized machine architectures under identical machine and container workloads, including actual memory footprint and native pointer acquisition/release.
+4. Establish repeatable performance targets and expand portability, diagnostics and robustness before considering production deployment.
 
 ## Repository layout
 
@@ -59,6 +81,7 @@ The design intentionally spends substantial metadata (roughly 73 bytes per logic
 - `tests/reference_tests.cpp` — directed tests plus 96,000 randomized operations across checked and unchecked variants, comparing to an independent logical vector model.
 - `tests/no_heap.cpp` — counts operator new calls during successful machine operations (ordinary build only).
 - `examples/flex_document_demo.cpp` — nested binary document mutation, surviving handle, exact byte-stream save/load. Demonstration only, not a full FlexDocument container or parser.
-- `SPEC.md` — proposed contract and decisions for further review.
+- `SPEC.md` — machine contract and open engineering decisions.
+- `CONTAINERS.md` — proposed container APIs, portable document format and validation plan.
 
-The full container family, independent grader, performance calibration and production-grade FlexDocument remain future work. The reference is not thread-safe.
+The container suite, independent conformance harness, performance calibration and production-grade FlexDocument remain future work. The reference is not thread-safe.
